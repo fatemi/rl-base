@@ -1,0 +1,49 @@
+game_name: 'catch'
+device: 'cpu'
+state_shape: 24
+paddle_size: 0
+frame_skip: 1
+rendering: False
+random_seed: 1234
+
+num_experiments: 1
+num_epochs: 50
+nb_processes: 1
+is_learning: True
+steps_per_epoch: 1000
+max_start_nullops: 0
+is_testing: True
+steps_per_test: 1000
+episode_max_len: 60000
+folder_location: './results/'
+folder_name: 'catch'
+test: False
+
+epsilon: 1.0
+annealing: True
+final_epsilon: .01
+test_epsilon: 0.00
+annealing_start: 1
+annealing_steps: 1000
+
+ddqn: False
+gamma: .99
+learning_rate: 0.001
+minibatch_size: 32
+history_len: 1
+nb_step_return: 1
+replay_max_size: 10000
+replay_min_size: 100
+rescale_reward: False
+reward_divider: 1.0
+reward_min: -1.0
+reward_max: 1.0
+learning_frequency: 4
+update_freq: 2
+grad_clip: 1
+action_dim: 1
+reward_dim: 1
+normalize: 1.
+
+
+

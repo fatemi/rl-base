@@ -1,109 +1,96 @@
-import sys
-import os
-
-import click
-import cv2
+import gym
 import numpy as np
-from ale_python_interface import ALEInterface
+import time
+import preprocessing
+import click
+
+
+ALL_GAMES = ['AirRaid', 'Alien', 'Amidar', 'Assault', 'Asterix', 'Asteroids',
+             'Atlantis', 'BankHeist', 'BattleZone', 'BeamRider', 'Berzerk',
+             'Bowling', 'Boxing', 'Breakout', 'Carnival', 'Centipede',
+             'ChopperCommand', 'CrazyClimber', 'DemonAttack', 'DoubleDunk',
+             'ElevatorAction', 'Enduro', 'FishingDerby', 'Freeway', 'Frostbite',
+             'Gopher', 'Gravitar', 'Hero', 'IceHockey', 'Jamesbond',
+             'JourneyEscape', 'Kangaroo', 'Krull', 'KungFuMaster',
+             'MontezumaRevenge', 'MsPacman', 'NameThisGame', 'Phoenix',
+             'Pitfall', 'Pong', 'Pooyan', 'PrivateEye', 'Qbert', 'Riverraid',
+             'RoadRunner', 'Robotank', 'Seaquest', 'Skiing', 'Solaris',
+             'SpaceInvaders', 'StarGunner', 'Tennis', 'TimePilot', 'Tutankham',
+             'UpNDown', 'Venture', 'VideoPinball', 'WizardOfWor', 'YarsRevenge',
+             'Zaxxon']
+
 
 
 class AtariEnv(object):
-    def __init__(self, frame_skip=None, repeat_action_probability=0.0, state_shape=[84, 84], rom_path=None,
-                 game_name='pong', random_state=None, rendering=False, record_dir=None, obs_showing=False,
-                 channel_weights=[0.5870, 0.2989, 0.1140]):
-        self.ale = ALEInterface()
+    def __init__(self, game_name='pong', rendering=True, sticky_actions=True, frame_skip=4,
+                 terminal_on_life_loss=False, screen_size=84):
+        self.game_name = None
+        for g in ALL_GAMES:
+            if game_name.lower() in g.lower():
+                self.game_name = g
+                break
+        if self.game_name is None:
+            raise ValueError('Invalid game_name.')
+        game_version = 'v0' if sticky_actions else 'v4'
+        full_game_name = '{}NoFrameskip-{}'.format(self.game_name, game_version)
         self.frame_skip = frame_skip
-        self.state_shape = state_shape
-        if random_state is None:
-            random_state = np.random.RandomState(1234)
-        self.rng = random_state
-        self.channel_weights = channel_weights
-        self.ale.setInt(b'random_seed', self.rng.randint(1000))
-        self.ale.setFloat(b'repeat_action_probability', repeat_action_probability)
-        self.ale.setBool(b'color_averaging', False)
-        if rendering:
-            if sys.platform == 'darwin':
-                self.ale.setBool(b'sound', False)  # Sound doesn't work on OSX
-            elif sys.platform.startswith('linux'):
-                self.ale.setBool(b'sound', True)
-            self.ale.setBool(b'display_screen', True)
-        if rendering and record_dir is not None:  # should be before loadROM
-            self.ale.setString(b'record_screen_dir', record_dir.encode())
-            self.ale.setString(b'record_sound_filename', os.path.join(record_dir, '/sound.wav').encode())
-            self.ale.setInt(b'fragsize', 64)  # to ensure proper sound sync (see ALE doc)
-        self.ale.loadROM(str.encode(rom_path + game_name + '.bin'))
-        self.legal_actions = self.ale.getMinimalActionSet()
-        self.nb_actions = len(self.legal_actions)
-        (self.screen_width, self.screen_height) = self.ale.getScreenDims()
-        self._buffer = np.empty((self.screen_height, self.screen_width, 3), dtype=np.uint8)
-        # self._prev_screen = np.zeros(self.state_shape, dtype=np.uint8)
+        env = gym.make(full_game_name)
+        env = env.env
+        self.env = preprocessing.AtariPreprocessing(env, frame_skip=frame_skip, terminal_on_life_loss=terminal_on_life_loss, screen_size=screen_size)
+        self.rendering = rendering
+        self.nb_actions = self.env.action_space.n
+        self.state_shape = [screen_size, screen_size]
 
-        self.obs_showing = obs_showing
-        # if obs_showing:
-        #     self.view = plt.figure()
-        # else:
-        #     self.view = None
-
-    def reset(self):
-        self.ale.reset_game()
-        return self.get_state()
+    def render(self, mode='human'):
+        if self.rendering == True:
+            self.env.render(mode=mode)
 
     def step(self, action):
-        reward = 0.0
-        if self.frame_skip is None:
-            num_steps = 1
-        elif isinstance(self.frame_skip, int):
-            num_steps = self.frame_skip
-        else:
-            num_steps = self.rng.randint(self.frame_skip[0], self.frame_skip[1])
-        for i in range(num_steps):
-            # if i == num_steps - 1:
-            #     self._prev_screen = self._get_image()
-            reward += self.ale.act(self.legal_actions[action])
-        return self.get_state(), reward, self.ale.game_over(), {}
-
-    def _get_image(self):
-        self.ale.getScreenRGB(self._buffer)
-        gray = self.channel_weights[0] * self._buffer[:, :, 0] + self.channel_weights[1] * self._buffer[:, :, 1] + \
-           self.channel_weights[2] * self._buffer[:, :, 2]
-        x = cv2.resize(gray, tuple(self.state_shape), interpolation=cv2.INTER_LINEAR)
-        return x
-
-    def get_state(self):
-        # return np.maximum(self._get_image(), self._prev_screen)
-        return self._get_image()
+        s, r, term, info = self.env.step(action)
+        self.render()
+        return s.reshape(self.state_shape), r, term, info
 
     def get_lives(self):
-        return self.ale.lives()
+        return self.env.lives
+    
+    def reset(self):
+        return self.env.reset().reshape(self.state_shape)
+    
+    def get_state(self):
+        return self.env._pool_and_resize().reshape(self.state_shape)
 
-    # def obs_show(self):
-    #     if self.obs_showing:
-    #         x = self.get_state()
-    #         self.view.clear()
-    #         plt.imshow(x, cmap='gray')
-    #         plt.pause(0.001)
-    #         plt.savefig('f11.png')
-    #     else:
-    #         print('The class should be initiated with obs_showing=True.')
 
 
 @click.command()
 @click.option('--human/--no-human', default=False, help='Activates the flat agent.')
 @click.option('--game', default='pong', help='Game to play.')
 @click.option('--show/--no-show', default=False, help='Shows the observations.')
-def test(human, game, show):
-    env = AtariEnv(rom_path='aleroms/', game_name=game, frame_skip=4, rendering=True, obs_showing=show)
+@click.option('--pause', default=0.0, type=float, help='Pause in seconds.')
+def play(human, game, show, pause):
+    env = AtariEnv(game_name=game, rendering=True)
     term = False
     while not term:
         if not human:
-            a = np.random.randint(0, env.nb_actions)
+            a = env.env.action_space.sample()
         else:
-            a = int(input('Action >> '))
+            print('-'*30)
+            print('Num actions: ', env.nb_actions)
+            a = input('Action >> ')
+            if a == 'q':
+                return
+            elif not a.isdigit():
+                continue
+            a = int(a)
+            if a > env.nb_actions:
+                print('Invalid action.')
+                continue
         obs, r, term, _ = env.step(a)
-        # if show:
-        #     env.obs_show()
-        print('state>> {0} | action>> {1} | reward>> {2} | lives>> {3}'.format(obs, a, r, env.get_lives()))
+        print('action>>  {0:2d}  |  reward>>  {1:3.0f}  |  lives>>  {2}'.format(
+            a, r, env.get_lives()))
+        if pause != 0.:
+            time.sleep(pause)
 
 
-if __name__ == '__main__':
-    test()
+
+if __name__ == "__main__":
+    play()

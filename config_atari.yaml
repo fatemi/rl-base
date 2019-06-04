@@ -1,8 +1,10 @@
 rom_path: './aleroms/'
 game_name: 'pong'
 device: 'cpu'  # make sure using `cuda` on GPU servers
-state_shape: [84,84]
+screen_size: 84
 frame_skip: 4
+terminal_on_life_loss: False
+sticky_actions: True
 repeat_action_probability: 0.0
 rendering: False
 random_seed: 1

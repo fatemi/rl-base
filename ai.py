@@ -69,7 +69,7 @@ class AI(object):
             q2_max = q2.gather(1, torch.max(q2_net, 1)[1].unsqueeze(1)).squeeze(1)
         else:
             q2_max = torch.max(q2, 1)[0]
-        bellman_target = r + self.gamma * q2_max * (1 - t)
+        bellman_target = r + self.gamma * q2_max.detach() * (1 - t)
         
         errs = (bellman_target - q_pred).unsqueeze(1)
         quad = torch.min(torch.abs(errs), 1)[0]
@@ -130,5 +130,5 @@ class AI(object):
     def __getstate__(self):
         _dict = {k: v for k, v in self.__dict__.items()}
         del _dict['device']  # is not picklable
-        del _dict['transitions']  # huge object (if you need the replay buffer, save its contnts with np.save)
+        del _dict['transitions']  # huge object (if you need the replay buffer, save it with np.save)
         return _dict

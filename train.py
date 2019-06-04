@@ -53,10 +53,12 @@ def run(domain, options):
                     rendering=params['rendering'])
     elif domain == 'atari':
         from atari import AtariEnv
-        env = AtariEnv(frame_skip=params['frame_skip'],
-                       repeat_action_probability=params['repeat_action_probability'], state_shape=params['state_shape'],
-                       rom_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), params['rom_path']),
-                       game_name=params['game_name'], rendering=params['test'], random_state=random_state)
+        env = AtariEnv(game_name=params['game_name'], rendering=params['test'], sticky_actions=params['sticky_actions'], 
+                       frame_skip=params['frame_skip'], terminal_on_life_loss=params['terminal_on_life_loss'], screen_size=params['screen_size'])
+        # env = AtariEnv(frame_skip=params['frame_skip'],
+        #                repeat_action_probability=params['repeat_action_probability'], state_shape=params['state_shape'],
+        #                rom_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), params['rom_path']),
+        #                game_name=params['game_name'], rendering=params['test'], random_state=random_state)
     else:
         raise ValueError('domain must be either catch or atari')
     

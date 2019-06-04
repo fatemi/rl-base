@@ -5,6 +5,9 @@ import pygame
 
 logger = logging.getLogger(__name__)
 
+from IPython.core import debugger
+debug = debugger.Pdb().set_trace
+
 
 # RGB colors
 WHITE = (255, 255, 255)
@@ -45,9 +48,9 @@ class Catch(object):
 
     def reset(self):
         self.done = False
-        n = np.random.randint(0, self.grid_size-1, size=1)
-        m = np.random.randint(1, self.grid_size-2, size=1)
-        self.state = np.asarray([0, n, m])[np.newaxis]
+        n = int(np.random.randint(0, self.grid_size-1, size=1))
+        m = int(np.random.randint(1, self.grid_size-2, size=1))
+        self.state = np.asarray([0, n, m])
         self.play = 0
         if self.rendering:
             self._init_pygame()
@@ -56,7 +59,7 @@ class Catch(object):
         pygame.init()
         size = [self.rendering_scale * self.state_shape[0], self.rendering_scale * self.state_shape[1]]
         self.screen = pygame.display.set_mode(size)
-        pygame.display.set_caption("Maluuba Game Engine")
+        pygame.display.set_caption("Catch Game")
 
     def close(self):
         if self.rendering:
@@ -76,23 +79,22 @@ class Catch(object):
             action = 1  # right
         else:
             raise ValueError('Unexpected action: {0}'.format(action))
-        f0, f1, basket = state[0]
+        f0, f1, basket = state
         new_basket = min(max(self.basket_offset, basket + action), self.grid_size-self.basket_offset-1)
         f0 += 1
         out = np.asarray([f0, f1, new_basket])
-        out = out[np.newaxis]
         self.state = out
 
     def _draw_state(self):
         im_size = (self.grid_size,) * 2
-        state = self.state[0]
+        state = self.state
         canvas = np.zeros(im_size)
         canvas[state[0], state[1]] = 1  # draw fruit
         canvas[-1, state[2] - self.basket_offset:state[2] + self.basket_offset + 1] = 1  # draw basket
         return canvas
 
     def _get_reward(self):
-        fruit_row, fruit_col, basket = self.state[0]
+        fruit_row, fruit_col, basket = self.state
         if fruit_row == self.grid_size-1:
             if abs(fruit_col - basket) <= self.basket_offset:
                 return 1
@@ -102,7 +104,7 @@ class Catch(object):
             return 0
 
     def _is_over(self):
-        if self.state[0, 0] == self.grid_size - 1:
+        if self.state[0] == self.grid_size - 1:
             self.play += 1
         if self.play >= self.length:
             self.done = True
@@ -144,10 +146,10 @@ class Catch(object):
         return new_state, reward, self._is_over(), {}
 
     def get_lives(self):
-        return 0 if self.state[0, 0] == self.grid_size-1 else 1
+        return 0 if self.state[0] == self.grid_size-1 else 1
 
     def get_paddlexy_ballxy(self):
-        fruit_row, fruit_col, basket = self.state[0]
+        fruit_row, fruit_col, basket = self.state
         fruit_row_ = deepcopy(fruit_row)
         if fruit_row == 0:
             fruit_row_ = self.grid_size - 1
@@ -159,7 +161,7 @@ class Catch(object):
             return
         pygame.event.pump()
         self.screen.fill(BLACK)
-        state = self.state[0]
+        state = self.state
         basket_size = [self.rendering_scale, self.rendering_scale * (2 * self.basket_offset + 1)]
         basket_pos = [self.rendering_scale * (self.state_shape[1] - 1),
                       self.rendering_scale * (state[2] - self.basket_offset)]

@@ -53,10 +53,10 @@ class AI(object):
             raise ValueError('Invalid network_size.')
 
     def train_on_batch(self, s, a, r, s2, t):
-        s = torch.FloatTensor(s).to(self.device)
-        s2 = torch.FloatTensor(s2).to(self.device)
-        a = torch.LongTensor(a).to(self.device)
-        r = torch.FloatTensor(r).to(self.device)
+        s = torch.FloatTensor(np.float32(s)).to(self.device)
+        s2 = torch.FloatTensor(np.float32(s2)).to(self.device)
+        a = torch.LongTensor(np.int64(a)).to(self.device)
+        r = torch.FloatTensor(np.float32(r)).to(self.device)
         t = torch.FloatTensor(np.float32(t)).to(self.device)
 
         r.clamp_(min=-1, max=1)

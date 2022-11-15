@@ -2,7 +2,7 @@ import numpy as np
 from utils import ExperienceReplay
 from model import Network, LargeNetwork, NatureNetwork
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 
 
@@ -69,12 +69,9 @@ class AI(object):
             q2_max = q2.gather(1, torch.max(q2_net, 1)[1].unsqueeze(1)).squeeze(1)
         else:
             q2_max = torch.max(q2, 1)[0]
-        bellman_target = r + self.gamma * q2_max.detach() * (1 - t)
         
-        errs = (bellman_target - q_pred).unsqueeze(1)
-        quad = torch.min(torch.abs(errs), 1)[0]
-        lin = torch.abs(errs) - quad
-        loss = torch.sum(0.5 * quad.pow(2) + lin)
+        bellman_target = r + self.gamma * q2_max.detach() * (1 - t)
+        loss = F.smooth_l1_loss(q_pred, bellman_target)
             
         self.optimizer.zero_grad()
         loss.backward()
